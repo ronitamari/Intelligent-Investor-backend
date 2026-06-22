@@ -41,9 +41,6 @@ spec:
                   key: POSTGRES_DB
               name: postgres-secret
               key: POSTGRES_DB
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
 ---
 apiVersion: v1
 kind: Service
