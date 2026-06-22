@@ -17,6 +17,28 @@ spec:
           image: quay.io/YOUR_QUAY_USERNAME/the-intelligent-investor-backend:prod
           ports:
             - containerPort: 4000
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+              name: postgres-secret
+              key: POSTGRES_DB
 ---
 apiVersion: v1
 kind: Service
