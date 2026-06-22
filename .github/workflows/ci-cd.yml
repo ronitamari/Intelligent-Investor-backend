@@ -1,0 +1,83 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - stage
+      - main
+
+env:
+  IMAGE_NAME: quay.io/roni-tamari/the-intelligent-investor-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+      environment: ${{ steps.vars.outputs.environment }}
+      manifest_file: ${{ steps.vars.outputs.manifest_file }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: vars
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "image_tag=prod" >> $GITHUB_OUTPUT
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "manifest_file=k8s/prod.yaml" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_REF_NAME}" = "stage" ]; then
+            echo "image_tag=prep" >> $GITHUB_OUTPUT
+            echo "environment=prep" >> $GITHUB_OUTPUT
+            echo "manifest_file=k8s/prep.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to Quay
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $IMAGE_NAME:prod \
+            -t $IMAGE_NAME:prep \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_NAME:prod
+          docker push $IMAGE_NAME:prep
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install oc
+        uses: redhat-actions/oc-installer@v1
+
+      - name: Login OpenShift
+        run: |
+          oc login \
+            --token=${{ secrets.OPENSHIFT_TOKEN }} \
+            --server=${{ secrets.OPENSHIFT_SERVER }}
+
+      - name: Deploy manifests
+        run: |
+          oc apply -f ${{ needs.build-and-push.outputs.manifest_file }} \
+            -n ${{ secrets.OPENSHIFT_NAMESPACE }}
+
+      - name: Update image
+        run: |
+          oc set image deployment/the-intelligent-investor-backend-${{ needs.build-and-push.outputs.environment }} \
+            the-intelligent-investor-backend=${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }} \
+            -n ${{ secrets.OPENSHIFT_NAMESPACE }}
