@@ -73,7 +73,6 @@ jobs:
 
       - name: Deploy manifests
         run: |
-          oc delete pvc postgres-pvc -n ${{ secrets.OPENSHIFT_NAMESPACE }}
           oc apply -f k8s/postgres.yaml -n ${{ secrets.OPENSHIFT_NAMESPACE }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
           oc apply -f ${{ needs.build-and-push.outputs.manifest_file }} \
