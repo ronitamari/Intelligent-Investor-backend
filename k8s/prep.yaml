@@ -24,6 +24,11 @@ spec:
               value: postgres
             - name: DB_PORT
               value: "5432"
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-env-prep
+                  key: FRONTEND_URL
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
