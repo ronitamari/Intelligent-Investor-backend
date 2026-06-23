@@ -15,8 +15,43 @@ spec:
       containers:
         - name: the-intelligent-investor-backend
           image: quay.io/roni-tamari/the-intelligent-investor-backend:prep
+          imagePullPolicy: Always
           ports:
             - containerPort: 4000
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-env-prep
+                  key: FRONTEND_URL
+            - name: DB_SYNCHRONIZE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: DB_SYNCHRONIZE
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+              name: postgres-secret
+              key: POSTGRES_DB
 ---
 apiVersion: v1
 kind: Service
