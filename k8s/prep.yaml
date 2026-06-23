@@ -15,6 +15,7 @@ spec:
       containers:
         - name: the-intelligent-investor-backend
           image: quay.io/roni-tamari/the-intelligent-investor-backend:prep
+          imagePullPolicy: Always
           ports:
             - containerPort: 4000
           env:

@@ -15,6 +15,7 @@ spec:
       containers:
         - name: the-intelligent-investor-backend
           image: quay.io/YOUR_QUAY_USERNAME/the-intelligent-investor-backend:prod
+          imagePullPolicy: Always
           ports:
             - containerPort: 4000
           env:
