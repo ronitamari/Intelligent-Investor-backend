@@ -83,3 +83,28 @@ jobs:
           oc set image deployment/the-intelligent-investor-backend-${{ needs.build-and-push.outputs.environment }} \
             the-intelligent-investor-backend=${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
+
+      - name: Wait for backend rollout
+        run: |
+          oc rollout status deployment/the-intelligent-investor-backend-${{ needs.build-and-push.outputs.environment }} \
+            -n ${{ secrets.OPENSHIFT_NAMESPACE }} \
+            --timeout=180s
+
+      - name: Verify health endpoint
+        env:
+          PREP_API_URL: ${{ secrets.PREP_API_URL }}
+          PROD_API_URL: ${{ secrets.PROD_API_URL }}
+        run: |
+          if [ "${{ needs.build-and-push.outputs.environment }}" = "prod" ]; then
+            API_URL="$PROD_API_URL"
+          else
+            API_URL="$PREP_API_URL"
+          fi
+
+          if [ -z "$API_URL" ]; then
+            echo "Missing API URL secret for ${{ needs.build-and-push.outputs.environment }} environment"
+            exit 1
+          fi
+
+          curl --fail --show-error --retry 10 --retry-delay 5 --retry-all-errors \
+            "${API_URL%/}/health"
