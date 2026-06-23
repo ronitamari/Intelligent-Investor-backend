@@ -30,6 +30,11 @@ spec:
                 secretKeyRef:
                   name: backend-env-prep
                   key: FRONTEND_URL
+            - name: DB_SYNCHRONIZE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: DB_SYNCHRONIZE
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
