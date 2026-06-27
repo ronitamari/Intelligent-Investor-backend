@@ -65,6 +65,7 @@ jobs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
       environment: ${{ steps.vars.outputs.environment }}
       manifest_file: ${{ steps.vars.outputs.manifest_file }}
+      db_manifest_file: ${{ steps.vars.outputs.db_manifest_file }}
 
     steps:
       - name: Stage 3.1 - Checkout backend code
@@ -77,10 +78,12 @@ jobs:
             echo "image_tag=prod" >> $GITHUB_OUTPUT
             echo "environment=prod" >> $GITHUB_OUTPUT
             echo "manifest_file=k8s/prod.yaml" >> $GITHUB_OUTPUT
+            echo "db_manifest_file=k8s/postgres-prod.yaml" >> $GITHUB_OUTPUT
           elif [ "${GITHUB_REF_NAME}" = "stage" ]; then
             echo "image_tag=prep" >> $GITHUB_OUTPUT
             echo "environment=prep" >> $GITHUB_OUTPUT
             echo "manifest_file=k8s/prep.yaml" >> $GITHUB_OUTPUT
+            echo "db_manifest_file=k8s/postgres-prep.yaml" >> $GITHUB_OUTPUT
           fi
 
       - name: Stage 3.3 - Login to Quay
@@ -123,7 +126,7 @@ jobs:
 
       - name: Stage 4.4 - Apply Kubernetes manifests
         run: |
-          oc apply -f k8s/postgres.yaml \
+          oc apply -f ${{ needs.build-and-push.outputs.db_manifest_file }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
           oc apply -f ${{ needs.build-and-push.outputs.manifest_file }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
