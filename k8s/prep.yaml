@@ -22,7 +22,7 @@ spec:
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
             - name: DB_HOST
-              value: postgres
+              value: postgres-prep
             - name: DB_PORT
               value: "5432"
             - name: FRONTEND_URL
@@ -33,25 +33,23 @@ spec:
             - name: DB_SYNCHRONIZE
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prep
                   key: DB_SYNCHRONIZE
-            - name: DB_USERNAME
+            - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prep
                   key: POSTGRES_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prep
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prep
                   key: POSTGRES_DB
-              name: postgres-secret
-              key: POSTGRES_DB
 ---
 apiVersion: v1
 kind: Service
