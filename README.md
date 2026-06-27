@@ -51,6 +51,13 @@ OpenShift also needs these application secrets:
 | `backend-env-prep` | `FRONTEND_URL` |
 | `backend-env-prod` | `FRONTEND_URL` |
 
+PostgreSQL is deployed with separate manifests per environment:
+
+| Environment | DB manifest | Service name | PVC name |
+| --- | --- | --- | --- |
+| Prep/stage | `k8s/postgres-prep.yaml` | `postgres-prep` | `postgres-prep-pvc` |
+| Production | `k8s/postgres-prod.yaml` | `postgres-prod` | `postgres-prod-pvc` |
+
 ## Development
 
 ```bash
