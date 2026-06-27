@@ -3,6 +3,10 @@ name: Backend CI/CD
 on:
   push:
     branches:
+      - "**"
+  pull_request:
+    branches:
+      - dev
       - stage
       - main
 
@@ -10,7 +14,51 @@ env:
   IMAGE_NAME: quay.io/roni-tamari/the-intelligent-investor-backend
 
 jobs:
+  test:
+    name: Stage 1 - Validate code and run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Stage 1.1 - Checkout backend code
+        uses: actions/checkout@v4
+
+      - name: Stage 1.2 - Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Stage 1.3 - Install dependencies
+        run: npm ci
+
+      - name: Stage 1.4 - Run lint
+        run: npm run lint
+
+      - name: Stage 1.5 - Run unit tests
+        run: npm test -- --runInBand
+
+      - name: Stage 1.6 - Run integration tests
+        run: npm run test:e2e
+
+      - name: Stage 1.7 - Build application
+        run: npm run build
+
+  docker-build:
+    name: Stage 2 - Build Docker image on every push
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Stage 2.1 - Checkout backend code
+        uses: actions/checkout@v4
+
+      - name: Stage 2.2 - Build backend Docker image
+        run: docker build -t $IMAGE_NAME:${{ github.sha }} .
+
   build-and-push:
+    name: Stage 3 - Build and push deployment image
+    needs: test
+    if: github.event_name == 'push' && (github.ref_name == 'stage' || github.ref_name == 'main')
     runs-on: ubuntu-latest
 
     outputs:
@@ -19,10 +67,10 @@ jobs:
       manifest_file: ${{ steps.vars.outputs.manifest_file }}
 
     steps:
-      - name: Checkout code
+      - name: Stage 3.1 - Checkout backend code
         uses: actions/checkout@v4
 
-      - name: Set environment variables
+      - name: Stage 3.2 - Set deployment variables
         id: vars
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -35,62 +83,64 @@ jobs:
             echo "manifest_file=k8s/prep.yaml" >> $GITHUB_OUTPUT
           fi
 
-      - name: Login to Quay
+      - name: Stage 3.3 - Login to Quay
         uses: docker/login-action@v3
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Stage 3.4 - Build tagged backend image
         run: |
           docker build \
-            -t $IMAGE_NAME:prod \
-            -t $IMAGE_NAME:prep \
+            -t $IMAGE_NAME:${{ steps.vars.outputs.image_tag }} \
+            -t $IMAGE_NAME:${{ github.sha }} \
             .
 
-      - name: Push Docker image
+      - name: Stage 3.5 - Push backend image
         run: |
-          docker push $IMAGE_NAME:prod
-          docker push $IMAGE_NAME:prep
+          docker push $IMAGE_NAME:${{ steps.vars.outputs.image_tag }}
+          docker push $IMAGE_NAME:${{ github.sha }}
 
   deploy:
+    name: Stage 4 - Deploy and verify environment
     needs: build-and-push
+    if: github.event_name == 'push' && (github.ref_name == 'stage' || github.ref_name == 'main')
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Stage 4.1 - Checkout backend manifests
         uses: actions/checkout@v4
 
-      - name: Install oc
+      - name: Stage 4.2 - Install OpenShift CLI
         uses: redhat-actions/oc-installer@v1
 
-      - name: Login OpenShift
+      - name: Stage 4.3 - Login to OpenShift
         run: |
           oc login \
             --token=${{ secrets.OPENSHIFT_TOKEN }} \
             --server=${{ secrets.OPENSHIFT_SERVER }}
 
-      - name: Deploy manifests
+      - name: Stage 4.4 - Apply Kubernetes manifests
         run: |
-          oc apply -f k8s/postgres.yaml -n ${{ secrets.OPENSHIFT_NAMESPACE }} \
+          oc apply -f k8s/postgres.yaml \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
           oc apply -f ${{ needs.build-and-push.outputs.manifest_file }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
 
-      - name: Update image
+      - name: Stage 4.5 - Update backend image
         run: |
           oc set image deployment/the-intelligent-investor-backend-${{ needs.build-and-push.outputs.environment }} \
             the-intelligent-investor-backend=${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }}
 
-      - name: Wait for backend rollout
+      - name: Stage 4.6 - Wait for backend rollout
         run: |
           oc rollout status deployment/the-intelligent-investor-backend-${{ needs.build-and-push.outputs.environment }} \
             -n ${{ secrets.OPENSHIFT_NAMESPACE }} \
             --timeout=180s
 
-      - name: Verify health endpoint
+      - name: Stage 4.7 - Verify backend health endpoint
         env:
           PREP_API_URL: ${{ secrets.PREP_API_URL }}
           PROD_API_URL: ${{ secrets.PROD_API_URL }}

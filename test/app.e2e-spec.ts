@@ -57,6 +57,10 @@ describe('Intelligent Investor API (e2e)', () => {
     await app.init();
   });
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   afterAll(async () => {
     await app.close();
   });
@@ -74,38 +78,88 @@ describe('Intelligent Investor API (e2e)', () => {
     expect(response.body.wealthProjection).toHaveLength(15);
   });
 
-  it('POST /profiles saves a profile', () =>
+  it('POST /calculations rejects invalid calculation input', () =>
     request(app.getHttpServer())
+      .post('/calculations')
+      .send({ grossSalary: -1, bankNet: 8000 })
+      .expect(400));
+
+  it('POST /profiles saves a profile', async () => {
+    await request(app.getHttpServer())
       .post('/profiles')
       .send({ name: 'Ada', grossSalary: 10000, bankNet: 8000 })
       .expect(201)
-      .expect(profile));
+      .expect(profile);
 
-  it('GET /profiles lists saved profiles', () =>
+    expect(profilesService.create).toHaveBeenCalledWith({
+      name: 'Ada',
+      grossSalary: 10000,
+      bankNet: 8000,
+    });
+  });
+
+  it('POST /profiles rejects invalid profile input', () =>
     request(app.getHttpServer())
+      .post('/profiles')
+      .send({ name: '', grossSalary: 10000, bankNet: 8000 })
+      .expect(400));
+
+  it('GET /profiles lists saved profiles', async () => {
+    await request(app.getHttpServer())
       .get('/profiles')
       .expect(200)
-      .expect([profile]));
+      .expect([profile]);
 
-  it('GET /profiles/:id reloads one profile', () =>
-    request(app.getHttpServer())
+    expect(profilesService.findAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('GET /profiles/:id reloads one profile', async () => {
+    await request(app.getHttpServer())
       .get(`/profiles/${profileId}`)
       .expect(200)
-      .expect(profile));
+      .expect(profile);
 
-  it('PATCH /profiles/:id updates a profile', () =>
-    request(app.getHttpServer())
+    expect(profilesService.findOne).toHaveBeenCalledWith(profileId);
+  });
+
+  it('GET /profiles/:id rejects invalid profile ids', () =>
+    request(app.getHttpServer()).get('/profiles/not-a-uuid').expect(400));
+
+  it('PATCH /profiles/:id updates a profile', async () => {
+    await request(app.getHttpServer())
       .patch(`/profiles/${profileId}`)
       .send({ name: 'Ada Lovelace' })
       .expect(200)
-      .expect({ ...profile, name: 'Ada Lovelace' }));
+      .expect({ ...profile, name: 'Ada Lovelace' });
 
-  it('DELETE /profiles/:id removes a profile', () =>
-    request(app.getHttpServer()).delete(`/profiles/${profileId}`).expect(204));
+    expect(profilesService.update).toHaveBeenCalledWith(profileId, {
+      name: 'Ada Lovelace',
+    });
+  });
 
-  it('GET /health reports service and database readiness', () =>
+  it('PATCH /profiles/:id rejects invalid profile ids', () =>
     request(app.getHttpServer())
+      .patch('/profiles/not-a-uuid')
+      .send({ name: 'Ada Lovelace' })
+      .expect(400));
+
+  it('DELETE /profiles/:id removes a profile', async () => {
+    await request(app.getHttpServer())
+      .delete(`/profiles/${profileId}`)
+      .expect(204);
+
+    expect(profilesService.remove).toHaveBeenCalledWith(profileId);
+  });
+
+  it('DELETE /profiles/:id rejects invalid profile ids', () =>
+    request(app.getHttpServer()).delete('/profiles/not-a-uuid').expect(400));
+
+  it('GET /health reports service and database readiness', async () => {
+    await request(app.getHttpServer())
       .get('/health')
       .expect(200)
-      .expect({ status: 'ok', database: 'connected' }));
+      .expect({ status: 'ok', database: 'connected' });
+
+    expect(healthService.check).toHaveBeenCalledTimes(1);
+  });
 });
