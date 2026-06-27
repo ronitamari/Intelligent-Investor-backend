@@ -33,22 +33,22 @@ spec:
             - name: DB_SYNCHRONIZE
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prod
                   key: DB_SYNCHRONIZE
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prod
                   key: POSTGRES_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prod
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: postgres-prod
                   key: POSTGRES_DB
 ---
 apiVersion: v1
